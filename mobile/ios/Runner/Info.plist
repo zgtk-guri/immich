@@ -136,7 +136,7 @@
     <string>We need local network permission to connect to the local server using IP address and
       allow the casting feature to work</string>
     <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-    <string>We require this permission to access the local WiFi name for background upload mechanism</string>
+    <string>自宅などの指定した場所に着いたときにバックグラウンドでバックアップを開始するために、位置情報を「常に許可」にする必要があります。位置情報はこの端末内でのみ使われ、サーバーには送られません。</string>
     <key>NSLocationUsageDescription</key>
     <string>We require this permission to access the local WiFi name</string>
     <key>NSLocationWhenInUseUsageDescription</key>
