@@ -17,6 +17,7 @@
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
 		A01DD69B2F7F43B40049AB63 /* ImageRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = A01DD6982F7F43B40049AB63 /* ImageRequest.swift */; };
 		B21E34AA2E5AFD2B0031FDB9 /* BackgroundWorkerApiImpl.swift in Sources */ = {isa = PBXBuildFile; fileRef = B21E34A92E5AFD210031FDB9 /* BackgroundWorkerApiImpl.swift */; };
+		B21E34C22E5AFD2B0031FDC2 /* GeofenceTrigger.swift in Sources */ = {isa = PBXBuildFile; fileRef = B21E34C12E5AFD2B0031FDC1 /* GeofenceTrigger.swift */; };
 		B21E34AC2E5B09190031FDB9 /* BackgroundWorker.swift in Sources */ = {isa = PBXBuildFile; fileRef = B21E34AB2E5B09100031FDB9 /* BackgroundWorker.swift */; };
 		B25D377A2E72CA15008B6CA7 /* Connectivity.g.swift in Sources */ = {isa = PBXBuildFile; fileRef = B25D37782E72CA15008B6CA7 /* Connectivity.g.swift */; };
 		B25D377C2E72CA26008B6CA7 /* ConnectivityApiImpl.swift in Sources */ = {isa = PBXBuildFile; fileRef = B25D377B2E72CA20008B6CA7 /* ConnectivityApiImpl.swift */; };
@@ -108,6 +109,7 @@
 		97C147021CF9000F007C117D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A01DD6982F7F43B40049AB63 /* ImageRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageRequest.swift; sourceTree = "<group>"; };
 		B21E34A92E5AFD210031FDB9 /* BackgroundWorkerApiImpl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundWorkerApiImpl.swift; sourceTree = "<group>"; };
+		B21E34C12E5AFD2B0031FDC1 /* GeofenceTrigger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeofenceTrigger.swift; sourceTree = "<group>"; };
 		B21E34AB2E5B09100031FDB9 /* BackgroundWorker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundWorker.swift; sourceTree = "<group>"; };
 		B25D37782E72CA15008B6CA7 /* Connectivity.g.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Connectivity.g.swift; sourceTree = "<group>"; };
 		B25D377B2E72CA20008B6CA7 /* ConnectivityApiImpl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectivityApiImpl.swift; sourceTree = "<group>"; };
@@ -315,6 +317,7 @@
 				B2BE315E2E5E5229006EEF88 /* BackgroundWorker.g.swift */,
 				B21E34AB2E5B09100031FDB9 /* BackgroundWorker.swift */,
 				B21E34A92E5AFD210031FDB9 /* BackgroundWorkerApiImpl.swift */,
+				B21E34C12E5AFD2B0031FDC1 /* GeofenceTrigger.swift */,
 			);
 			path = Background;
 			sourceTree = "<group>";
@@ -631,6 +634,7 @@
 				FEAFA8732E4D42F4001E47FE /* Thumbhash.swift in Sources */,
 				B25D377C2E72CA26008B6CA7 /* ConnectivityApiImpl.swift in Sources */,
 				B21E34AA2E5AFD2B0031FDB9 /* BackgroundWorkerApiImpl.swift in Sources */,
+				B21E34C22E5AFD2B0031FDC2 /* GeofenceTrigger.swift in Sources */,
 				1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */,
 				B2BE315F2E5E5229006EEF88 /* BackgroundWorker.g.swift in Sources */,
 			);

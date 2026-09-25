@@ -54,11 +54,11 @@ class BackgroundWorkerApiImpl: BackgroundWorkerFgHostApi {
       }
   }
 
-  private static func scheduleProcessingWorker() {
+  static func scheduleProcessingWorker(delaySeconds: TimeInterval = 15 * 60) {
     let backgroundProcessing = BGProcessingTaskRequest(identifier: processingTaskID)
     
     backgroundProcessing.requiresNetworkConnectivity = true
-    backgroundProcessing.earliestBeginDate = Date(timeIntervalSinceNow: 15 * 60) // 15 mins
+    backgroundProcessing.earliestBeginDate = Date(timeIntervalSinceNow: delaySeconds) // 15 mins by default
     
     do {
         try BGTaskScheduler.shared.submit(backgroundProcessing)
@@ -67,6 +67,26 @@ class BackgroundWorkerApiImpl: BackgroundWorkerFgHostApi {
     }
   }
   
+  /**
+   * Runs the background worker outside of a BGTask, e.g. when the app was woken by a
+   * CoreLocation region event. Returns nil if another worker is already running.
+   * The caller is responsible for holding a UIBackgroundTask while the worker runs.
+   */
+  static func runStandaloneWorker(maxSeconds: Int, completion: @escaping (_ success: Bool) -> Void) -> BackgroundWorker? {
+    guard taskSemaphore.wait(timeout: .now()) == .success else {
+      completion(false)
+      return nil
+    }
+    let backgroundWorker = BackgroundWorker(taskType: .refresh, maxSeconds: maxSeconds) { success in
+      taskSemaphore.signal()
+      completion(success)
+    }
+    DispatchQueue.main.async {
+      backgroundWorker.run()
+    }
+    return backgroundWorker
+  }
+
   private static func handleBackgroundRefresh(task: BGAppRefreshTask) {
     scheduleRefreshWorker()
     // If another task is running, cede the background time back to the OS

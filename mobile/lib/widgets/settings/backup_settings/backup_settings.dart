@@ -14,6 +14,7 @@ import 'package:immich_mobile/providers/backup/backup_album.provider.dart';
 import 'package:immich_mobile/providers/infrastructure/platform.provider.dart';
 import 'package:immich_mobile/providers/infrastructure/settings.provider.dart';
 import 'package:immich_mobile/providers/user.provider.dart';
+import 'package:immich_mobile/widgets/settings/backup_settings/geofence_settings.dart';
 import 'package:immich_mobile/widgets/settings/setting_group_title.dart';
 import 'package:immich_mobile/widgets/settings/setting_list_tile.dart';
 import 'package:immich_mobile/widgets/settings/settings_sub_page_scaffold.dart';
@@ -33,6 +34,11 @@ class BackupSettings extends StatelessWidget {
           SettingGroupTitle(title: context.t.background_options, icon: Icons.charging_station_rounded),
           const _BackupOnlyWhenChargingButton(),
           const _BackupDelaySlider(),
+        ],
+        if (CurrentPlatform.isIOS) ...[
+          const Divider(),
+          const SettingGroupTitle(title: '位置情報トリガー', icon: Icons.home_outlined),
+          const GeofenceSettings(),
         ],
         const Divider(),
         SettingGroupTitle(title: context.t.backup_albums_sync, icon: Icons.sync),
