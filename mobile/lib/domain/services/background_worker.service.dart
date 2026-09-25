@@ -188,6 +188,27 @@ class BackgroundWorkerBgService extends BackgroundWorkerFlutterApi {
       } else {
         await all;
       }
+
+      // Second pass: the local sync above may have discovered new assets only after hash and
+      // backup had already looked, which leaves them behind until the next wake-up. A one-shot
+      // trigger (e.g. arriving home) has no next wake-up, so pick them up now if time allows.
+      if (!_isCleanedUp && !_cancellationToken.isCompleted && (budget == null || sw.elapsed < budget)) {
+        _logger.info("iOS background upload second pass after ${sw.elapsed.inSeconds}s");
+        final secondPass = _hashService.hashAssets().then((_) => _handleBackup());
+        if (budget != null) {
+          await secondPass.timeout(
+            budget - sw.elapsed,
+            onTimeout: () {
+              if (!_cancellationToken.isCompleted) {
+                _logger.warning("iOS background upload second pass timed out, cancelling tasks");
+                _cancellationToken.complete();
+              }
+            },
+          );
+        } else {
+          await secondPass;
+        }
+      }
     } catch (error, stack) {
       _logger.severe("Failed to complete iOS background upload", error, stack);
     } finally {
