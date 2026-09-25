@@ -1,0 +1,103 @@
+name: Fork sync upstream
+
+# Rebases the `geofence` branch onto the newest upstream stable release and, when that
+# succeeds, kicks off a TestFlight build. A rebase conflict opens an issue instead, because
+# resolving it needs a human looking at what upstream changed.
+#
+# `geofence` deliberately carries no workflow files, so this job's GITHUB_TOKEN is allowed
+# to push it (a token without the workflows permission cannot push workflow changes).
+
+on:
+  schedule:
+    - cron: '0 3 * * *' # 12:00 JST
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Upstream tag to rebase onto (default: latest stable release)'
+        required: false
+        type: string
+
+concurrency:
+  group: fork-sync-upstream
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  issues: write
+  actions: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout geofence
+        uses: actions/checkout@v5
+        with:
+          ref: geofence
+          fetch-depth: 0
+
+      - name: Fetch upstream tags
+        run: |
+          git remote add upstream https://github.com/immich-app/immich.git
+          git fetch --tags --no-recurse-submodules upstream
+
+      - name: Resolve versions
+        id: versions
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          new="${INPUT_TAG:-$(gh api repos/immich-app/immich/releases/latest --jq .tag_name)}"
+          old="$(git describe --tags --abbrev=0)"
+          echo "new=$new" >>"$GITHUB_OUTPUT"
+          echo "old=$old" >>"$GITHUB_OUTPUT"
+          if [[ "$new" == "$old" ]]; then
+            echo "up_to_date=true" >>"$GITHUB_OUTPUT"
+            echo "Already on $old"
+          else
+            echo "up_to_date=false" >>"$GITHUB_OUTPUT"
+            echo "Rebasing $old -> $new"
+          fi
+
+      - name: Rebase onto upstream release
+        id: rebase
+        if: steps.versions.outputs.up_to_date == 'false'
+        env:
+          OLD: ${{ steps.versions.outputs.old }}
+          NEW: ${{ steps.versions.outputs.new }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          if ! git rebase --onto "$NEW" "$OLD" geofence; then
+            git rebase --abort || true
+            echo "conflict=true" >>"$GITHUB_OUTPUT"
+            exit 1
+          fi
+          git push --force-with-lease origin geofence
+
+      - name: Open an issue on conflict
+        if: failure() && steps.rebase.outputs.conflict == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OLD: ${{ steps.versions.outputs.old }}
+          NEW: ${{ steps.versions.outputs.new }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          gh issue create \
+            --title "Rebase conflict: $OLD -> $NEW" \
+            --body "Rebasing \`geofence\` from \`$OLD\` onto \`$NEW\` conflicted, so the branch was left untouched.
+
+          Resolve it locally:
+
+          \`\`\`bash
+          git fetch upstream --tags
+          git rebase --onto $NEW $OLD geofence
+          \`\`\`
+
+          Run: $RUN_URL"
+
+      - name: Trigger TestFlight build
+        if: steps.versions.outputs.up_to_date == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run fork-testflight.yml -f ref=geofence

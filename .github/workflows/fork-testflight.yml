@@ -1,0 +1,119 @@
+name: Fork TestFlight
+
+# Builds the geofence fork and ships it to TestFlight.
+#
+# Signing is handled by Xcode's cloud-managed certificates, authenticated with an App Store
+# Connect API key, so no certificate or provisioning profile has to be stored as a secret.
+# The key must have the Admin role — App Manager cannot issue distribution certificates.
+#
+# Required secrets:
+#   APP_STORE_CONNECT_API_KEY_ID, APP_STORE_CONNECT_API_KEY_ISSUER_ID
+#   APP_STORE_CONNECT_API_KEY  (base64 of the .p8)
+# Required variables:
+#   IMMICH_TEAM_ID, IMMICH_BUNDLE_ID_PROD, IMMICH_GROUP_ID
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Ref to build'
+        required: false
+        default: 'geofence'
+        type: string
+  workflow_call:
+    inputs:
+      ref:
+        required: false
+        type: string
+
+concurrency:
+  group: fork-testflight
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  testflight:
+    runs-on: macos-26
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.ref || 'geofence' }}
+          persist-credentials: false
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_26.2.app/Contents/Developer
+
+      - name: Setup mise
+        uses: jdx/mise-action@v3
+        with:
+          install: false
+          cache: true
+
+      - name: Install mise tools
+        run: |
+          mise trust --all
+          mise install
+          mise install --cd mobile
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+          working-directory: ./mobile/ios
+
+      - name: Install Flutter dependencies
+        run: mise //mobile:install:ci
+
+      - name: Perform codegen
+        run: mise //mobile:codegen
+
+      - name: Write signing config
+        env:
+          IMMICH_TEAM_ID: ${{ vars.IMMICH_TEAM_ID }}
+          IMMICH_BUNDLE_ID_PROD: ${{ vars.IMMICH_BUNDLE_ID_PROD }}
+          IMMICH_GROUP_ID: ${{ vars.IMMICH_GROUP_ID }}
+        run: |
+          cat > mobile/ios/Signing.local.xcconfig <<EOF
+          IMMICH_TEAM_ID = ${IMMICH_TEAM_ID}
+          IMMICH_BUNDLE_ID_PROD = ${IMMICH_BUNDLE_ID_PROD}
+          IMMICH_BUNDLE_ID_DEV = ${IMMICH_BUNDLE_ID_PROD}dev
+          IMMICH_GROUP_ID = ${IMMICH_GROUP_ID}
+          EOF
+
+      - name: Install App Store Connect API key
+        env:
+          API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          API_KEY_CONTENT: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+        run: |
+          mkdir -p ~/.appstoreconnect/private_keys
+          printf '%s' "$API_KEY_CONTENT" | base64 --decode > ~/.appstoreconnect/private_keys/AuthKey_${API_KEY_ID}.p8
+          chmod 600 ~/.appstoreconnect/private_keys/AuthKey_${API_KEY_ID}.p8
+
+      - name: Build and upload to TestFlight
+        working-directory: ./mobile/ios
+        env:
+          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          APP_STORE_CONNECT_API_KEY_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ISSUER_ID }}
+          IMMICH_FORK_BUNDLE_ID: ${{ vars.IMMICH_BUNDLE_ID_PROD }}
+          IMMICH_FORK_TEAM_ID: ${{ vars.IMMICH_TEAM_ID }}
+          FASTLANE_XCODEBUILD_SETTINGS_TIMEOUT: 120
+          FASTLANE_XCODEBUILD_SETTINGS_RETRIES: 6
+        run: mise exec -- bundle exec fastlane fork_testflight
+
+      - name: Remove API key
+        if: always()
+        run: rm -rf ~/.appstoreconnect/private_keys
+
+      - name: Upload IPA artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fork-ipa
+          path: mobile/ios/build/Immich-fork.ipa
+          if-no-files-found: ignore
+          retention-days: 7
