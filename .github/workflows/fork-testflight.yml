@@ -32,6 +32,7 @@ concurrency:
 
 permissions:
   contents: read
+  issues: write
 
 jobs:
   testflight:
@@ -108,6 +109,23 @@ jobs:
       - name: Remove API key
         if: always()
         run: rm -rf ~/.appstoreconnect/private_keys
+
+      - name: Report failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title='TestFlight build failed'
+          existing="$(gh issue list --state open --search "$title in:title" --json number --jq '.[0].number')"
+          body="@zgtk-guri The fork build failed and nothing was shipped to TestFlight.
+
+          Run: $RUN_URL"
+          if [[ -n "$existing" ]]; then
+            gh issue comment "$existing" --body "$body"
+          else
+            gh issue create --title "$title" --assignee zgtk-guri --body "$body"
+          fi
 
       - name: Upload IPA artifact
         if: always()

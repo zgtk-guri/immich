@@ -85,7 +85,8 @@ jobs:
         run: |
           gh issue create \
             --title "Rebase conflict: $OLD -> $NEW" \
-            --body "Rebasing \`geofence\` from \`$OLD\` onto \`$NEW\` conflicted, so the branch was left untouched.
+            --assignee zgtk-guri \
+            --body "@zgtk-guri Rebasing \`geofence\` from \`$OLD\` onto \`$NEW\` conflicted, so the branch was left untouched.
 
           Resolve it locally:
 
