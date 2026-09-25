@@ -14,6 +14,7 @@ import native_video_player
     SwiftNativeVideoPlayerPlugin.cookieStorage = URLSessionManager.cookieStorage
     URLSessionManager.patchBackgroundDownloader()
     BackgroundWorkerApiImpl.registerBackgroundWorkers()
+    GeofenceTrigger.shared.start()
 
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
@@ -32,6 +33,7 @@ import native_video_player
     BackgroundWorkerFgHostApiSetup.setUp(binaryMessenger: messenger, api: BackgroundWorkerApiImpl())
     ConnectivityApiSetup.setUp(binaryMessenger: messenger, api: ConnectivityApiImpl())
     NetworkApiSetup.setUp(binaryMessenger: messenger, api: NetworkApiImpl())
+    GeofenceTrigger.shared.register(messenger: messenger)
   }
 
   public static func cancelPlugins(with engine: FlutterEngine) {
