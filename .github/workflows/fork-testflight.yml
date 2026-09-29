@@ -34,6 +34,10 @@ permissions:
   contents: read
   issues: write
 
+env:
+  # gh prefers a git remote named "upstream" when picking its target repo
+  GH_REPO: ${{ github.repository }}
+
 jobs:
   testflight:
     runs-on: macos-26

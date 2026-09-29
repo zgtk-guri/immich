@@ -26,6 +26,10 @@ permissions:
   issues: write
   actions: write
 
+env:
+  # gh prefers a git remote named "upstream" when picking its target repo
+  GH_REPO: ${{ github.repository }}
+
 jobs:
   sync:
     runs-on: ubuntu-latest
@@ -75,30 +79,41 @@ jobs:
           fi
           git push --force-with-lease origin geofence
 
-      - name: Open an issue on conflict
-        if: failure() && steps.rebase.outputs.conflict == 'true'
+      - name: Trigger TestFlight build
+        if: steps.versions.outputs.up_to_date == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run fork-testflight.yml -f ref=geofence
+
+      - name: Report failure
+        if: failure()
         env:
           GH_TOKEN: ${{ github.token }}
           OLD: ${{ steps.versions.outputs.old }}
           NEW: ${{ steps.versions.outputs.new }}
+          CONFLICT: ${{ steps.rebase.outputs.conflict }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          gh issue create \
-            --title "Rebase conflict: $OLD -> $NEW" \
-            --assignee zgtk-guri \
-            --body "@zgtk-guri Rebasing \`geofence\` from \`$OLD\` onto \`$NEW\` conflicted, so the branch was left untouched.
+          if [[ "$CONFLICT" == 'true' ]]; then
+            title="Rebase conflict: $OLD -> $NEW"
+            detail="Rebasing \`geofence\` from \`$OLD\` onto \`$NEW\` conflicted, so the branch was left untouched.
 
           Resolve it locally:
 
           \`\`\`bash
           git fetch upstream --tags
           git rebase --onto $NEW $OLD geofence
-          \`\`\`
+          \`\`\`"
+          else
+            title='Upstream sync failed'
+            detail="The sync job failed for a reason other than a rebase conflict."
+          fi
+          body="@zgtk-guri $detail
 
           Run: $RUN_URL"
-
-      - name: Trigger TestFlight build
-        if: steps.versions.outputs.up_to_date == 'false'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh workflow run fork-testflight.yml -f ref=geofence
+          existing="$(gh issue list --state open --search "\"$title\" in:title" --json number --jq '.[0].number')"
+          if [[ -n "$existing" ]]; then
+            gh issue comment "$existing" --body "$body"
+          else
+            gh issue create --title "$title" --assignee zgtk-guri --body "$body"
+          fi
