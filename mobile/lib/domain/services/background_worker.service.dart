@@ -152,13 +152,12 @@ class BackgroundWorkerBgService extends BackgroundWorkerFlutterApi {
       // batch waits for the remote sync. The single budget caps the
       // whole batch; no phase needs its own timeout.
       final remoteSync = _remoteSyncService.sync();
+      final remoteSyncOk = remoteSync.then((ok) => ok && !_cancellationToken.isCompleted).catchError((_) => false);
       final all = Future.wait<dynamic>([
         _localSyncService.sync(),
         remoteSync,
         _hashService.hashAssets(),
-        _handleBackup(
-          remoteSync: remoteSync.then((ok) => ok && !_cancellationToken.isCompleted).catchError((_) => false),
-        ),
+        _handleBackup(remoteSync: remoteSyncOk),
       ]);
       if (budget != null) {
         await all.timeout(
@@ -180,7 +179,7 @@ class BackgroundWorkerBgService extends BackgroundWorkerFlutterApi {
       // trigger (e.g. arriving home) has no next wake-up, so pick them up now if time allows.
       if (!_isCleanedUp && !_cancellationToken.isCompleted && (budget == null || sw.elapsed < budget)) {
         _logger.info("iOS background upload second pass after ${sw.elapsed.inSeconds}s");
-        final secondPass = _hashService.hashAssets().then((_) => _handleBackup());
+        final secondPass = _hashService.hashAssets().then((_) => _handleBackup(remoteSync: remoteSyncOk));
         if (budget != null) {
           await secondPass.timeout(
             budget - sw.elapsed,
@@ -189,6 +188,7 @@ class BackgroundWorkerBgService extends BackgroundWorkerFlutterApi {
                 _logger.warning("iOS background upload second pass timed out, cancelling tasks");
                 _cancellationToken.complete();
               }
+              return false;
             },
           );
         } else {
