@@ -147,6 +147,10 @@ class GeofenceTrigger: NSObject, CLLocationManagerDelegate {
       return
     }
 
+    // Same as the BGTask handlers: the next foreground resume must do a full sync, since a
+    // delta sync can miss photos taken after a background launch
+    BackgroundWorkerApiImpl.launchedInBackground = true
+
     var bgTask: UIBackgroundTaskIdentifier = .invalid
     var worker: BackgroundWorker?
     bgTask = UIApplication.shared.beginBackgroundTask(withName: "immich.geofence") {
