@@ -61,7 +61,8 @@ class _BackupAlbumSelectionPageState extends ConsumerState<BackupAlbumSelectionP
     final enableSyncUploadAlbum = ref.read(appConfigProvider).backup.syncAlbums;
     final selectedAlbums = ref
         .read(backupAlbumProvider)
-        .where((a) => a.backupSelection == BackupSelection.selected)
+        // Fork: albums are linked one by one in the backup options; only re-check those
+        .where((a) => a.backupSelection == BackupSelection.selected && a.linkedRemoteAlbumId != null)
         .toList();
 
     if (enableSyncUploadAlbum && selectedAlbums.isNotEmpty) {
