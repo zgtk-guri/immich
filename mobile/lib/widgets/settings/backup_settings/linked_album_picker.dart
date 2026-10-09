@@ -58,8 +58,11 @@ class _LinkedAlbumPickerState extends ConsumerState<LinkedAlbumPicker> {
           _showMessage('「${album.name}」をサーバーのアルバムに結び付けられませんでした');
           return;
         }
-        // Back-fill assets of this album that were uploaded before it was linked
-        unawaited(ref.read(backgroundSyncProvider).syncLinkedAlbum());
+        // Back-fill assets of this album that were uploaded before it was linked. While sync
+        // is off nothing is added; turning it on starts the sync for the chosen albums.
+        if (ref.read(appConfigProvider).backup.syncAlbums) {
+          unawaited(ref.read(backgroundSyncProvider).syncLinkedAlbum());
+        }
       }
     } finally {
       if (mounted) {
@@ -76,9 +79,7 @@ class _LinkedAlbumPickerState extends ConsumerState<LinkedAlbumPicker> {
 
   @override
   Widget build(BuildContext context) {
-    if (!ref.watch(appConfigProvider.select((c) => c.backup.syncAlbums))) {
-      return const SizedBox.shrink();
-    }
+    final syncEnabled = ref.watch(appConfigProvider.select((c) => c.backup.syncAlbums));
     final albums = ref.watch(backupAlbumProvider);
     final linked = albums.where((a) => a.linkedRemoteAlbumId != null).toList();
     final ordered = [...linked, ...albums.where((a) => a.linkedRemoteAlbumId == null)];
@@ -88,13 +89,17 @@ class _LinkedAlbumPickerState extends ConsumerState<LinkedAlbumPicker> {
       child: ExpansionTile(
         title: Text('同期するアルバム', style: context.textTheme.bodyLarge!.copyWith(fontWeight: FontWeight.w500)),
         subtitle: Text(
-          linked.isEmpty ? 'なし' : linked.map((a) => a.name).join('、'),
+          [
+            linked.isEmpty ? 'なし' : linked.map((a) => a.name).join('、'),
+            if (!syncEnabled && linked.isNotEmpty) '「アルバムを同期」が OFF のため、まだ追加されません',
+          ].join('\n'),
           style: context.textTheme.bodyMedium,
         ),
         children: [
           ListTile(
             dense: true,
             title: Text(
+              '「アルバムを同期」を ON にする前に選んでおけます。写真の追加は ON にしてから始まります。'
               'ここで選んだアルバムの写真も、バックアップ対象（「最近の項目」など）に含まれている必要があります。'
               'サーバーに上がった写真だけが同名のアルバムに追加されます。',
               style: context.textTheme.bodySmall,
