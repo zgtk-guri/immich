@@ -41,6 +41,8 @@ class BackupSettings extends StatelessWidget {
         const Divider(),
         SettingGroupTitle(title: context.t.backup_albums_sync, icon: Icons.sync),
         const _AlbumSyncActionButton(),
+        // Fork: a direct child of the page list so it scrolls with the page
+        const LinkedAlbumPicker(),
       ],
     );
   }
@@ -143,7 +145,6 @@ class _AlbumSyncActionButtonState extends ConsumerState<_AlbumSyncActionButton> 
                       : const SizedBox.shrink(),
                 ),
               ),
-              if (albumSyncEnable) const LinkedAlbumPicker(),
             ],
           ),
         ],
