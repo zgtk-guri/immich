@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:immich_mobile/domain/models/album/local_album.model.dart';
 import 'package:immich_mobile/domain/models/config/app_config.dart';
 import 'package:immich_mobile/domain/models/settings_key.dart';
 import 'package:immich_mobile/domain/services/sync_linked_album.service.dart';
@@ -15,6 +14,7 @@ import 'package:immich_mobile/providers/infrastructure/platform.provider.dart';
 import 'package:immich_mobile/providers/infrastructure/settings.provider.dart';
 import 'package:immich_mobile/providers/user.provider.dart';
 import 'package:immich_mobile/widgets/settings/backup_settings/geofence_settings.dart';
+import 'package:immich_mobile/widgets/settings/backup_settings/linked_album_picker.dart';
 import 'package:immich_ui/immich_ui.dart';
 
 class BackupSettings extends StatelessWidget {
@@ -84,11 +84,10 @@ class _AlbumSyncActionButtonState extends ConsumerState<_AlbumSyncActionButton> 
       return;
     }
     final localAlbums = ref.read(backupAlbumProvider);
-    final selectedBackupAlbums = localAlbums
-        .where((album) => album.backupSelection == BackupSelection.selected)
-        .toList();
+    // Fork: only re-check the albums the user linked in the picker below
+    final linkedAlbums = localAlbums.where((album) => album.linkedRemoteAlbumId != null).toList();
 
-    await ref.read(syncLinkedAlbumServiceProvider).manageLinkedAlbums(selectedBackupAlbums, currentUser.id);
+    await ref.read(syncLinkedAlbumServiceProvider).manageLinkedAlbums(linkedAlbums, currentUser.id);
   }
 
   @override
@@ -103,7 +102,7 @@ class _AlbumSyncActionButtonState extends ConsumerState<_AlbumSyncActionButton> 
             children: [
               SettingListTile(
                 title: context.t.sync_albums,
-                subtitle: context.t.sync_upload_album_setting_subtitle,
+                subtitle: '下で選んだ端末アルバムだけを、サーバーの同名アルバムに写真と動画を自動で追加します',
                 trailing: Switch(
                   value: albumSyncEnable,
                   onChanged: (bool newValue) async {
@@ -144,6 +143,7 @@ class _AlbumSyncActionButtonState extends ConsumerState<_AlbumSyncActionButton> 
                       : const SizedBox.shrink(),
                 ),
               ),
+              if (albumSyncEnable) const LinkedAlbumPicker(),
             ],
           ),
         ],

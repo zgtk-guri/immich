@@ -38,7 +38,8 @@ class SyncLinkedAlbumService {
   final _log = Logger("SyncLinkedAlbumService");
 
   Future<void> syncLinkedAlbums(String userId, {Completer<void>? cancellation}) async {
-    final selectedAlbums = await _localAlbumRepository.getBackupAlbums();
+    // Fork: sync the albums the user linked one by one, not every backup album
+    final selectedAlbums = await _localAlbumRepository.getLinkedAlbums();
 
     await Future.wait(
       selectedAlbums.map((localAlbum) async {
@@ -68,6 +69,23 @@ class SyncLinkedAlbumService {
       }),
     );
   }
+
+  /// Fork: put a just-uploaded asset into the server albums linked to the device albums it is in.
+  /// Runs on upload completion, so it also works when iOS wakes the app only to finish uploads.
+  Future<void> addUploadedAsset(String localAssetId, String remoteAssetId) async {
+    final albums = await _localAlbumRepository.getLinkedAlbumsForAsset(localAssetId);
+    for (final album in albums) {
+      try {
+        final result = await _albumApiRepository.addAssets(album.linkedRemoteAlbumId!, [remoteAssetId]);
+        _log.info("Added uploaded asset to linked album ${album.name} (added ${result.added.length})");
+      } catch (error, stackTrace) {
+        _log.warning("Failed to add uploaded asset to linked album ${album.name}", error, stackTrace);
+      }
+    }
+  }
+
+  /// Fork: stop mirroring a device album; the server album and its assets are left as they are
+  Future<void> unlinkAlbum(String localAlbumId) => _localAlbumRepository.unlinkRemoteAlbum(localAlbumId);
 
   Future<void> manageLinkedAlbums(List<LocalAlbum> localAlbums, String ownerId) async {
     try {

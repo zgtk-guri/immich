@@ -11,6 +11,7 @@ import 'package:immich_mobile/domain/models/asset/asset_metadata.model.dart';
 import 'package:immich_mobile/domain/models/asset/base_asset.model.dart';
 import 'package:immich_mobile/domain/models/store.model.dart';
 import 'package:immich_mobile/domain/services/asset.service.dart';
+import 'package:immich_mobile/domain/services/sync_linked_album.service.dart';
 import 'package:immich_mobile/entities/store.entity.dart';
 import 'package:immich_mobile/extensions/platform_extensions.dart';
 import 'package:immich_mobile/infrastructure/repositories/backup.repository.dart';
@@ -40,6 +41,12 @@ final backgroundUploadServiceProvider = Provider((ref) {
     ref.watch(assetMediaRepositoryProvider),
     ref.watch(assetServiceProvider),
   );
+  // Fork: mirror each finished upload into its linked server albums right away
+  service.onAssetUploaded = (localAssetId, remoteAssetId) async {
+    if (SettingsRepository.instance.appConfig.backup.syncAlbums) {
+      await ref.read(syncLinkedAlbumServiceProvider).addUploadedAsset(localAssetId, remoteAssetId);
+    }
+  };
 
   ref.onDispose(service.dispose);
   return service;
@@ -115,6 +122,10 @@ class BackgroundUploadService {
   Stream<TaskProgressUpdate> get taskProgressStream => _taskProgressController.stream;
 
   bool shouldAbortQueuingTasks = false;
+
+  /// Fork: called with the local and remote ids of every finished upload except the
+  /// video half of a live photo
+  Future<void> Function(String localAssetId, String remoteAssetId)? onAssetUploaded;
 
   void _onTaskProgressCallback(TaskProgressUpdate update) {
     if (!_taskProgressController.isClosed) {
@@ -201,6 +212,7 @@ class BackgroundUploadService {
       case TaskStatus.complete:
         unawaited(_handleLivePhoto(update));
         unawaited(_stackEditedAsset(update));
+        unawaited(_notifyAssetUploaded(update));
 
         if (CurrentPlatform.isIOS) {
           try {
@@ -246,6 +258,29 @@ class BackgroundUploadService {
       await enqueueTasks([uploadTask]);
     } catch (error, stackTrace) {
       dPrint(() => "Error handling live photo upload task: $error $stackTrace");
+    }
+  }
+
+  Future<void> _notifyAssetUploaded(TaskStatusUpdate update) async {
+    final callback = onAssetUploaded;
+    if (callback == null ||
+        update.task.metaData.isEmpty ||
+        update.responseBody == null ||
+        update.responseBody!.isEmpty) {
+      return;
+    }
+    try {
+      final metadata = UploadTaskMetadata.fromJson(update.task.metaData);
+      // The video half of a live photo carries isLivePhotos; the still that follows is the final asset
+      if (metadata.isLivePhotos) {
+        return;
+      }
+      final remoteAssetId = jsonDecode(update.responseBody!)['id'] as String?;
+      if (remoteAssetId != null) {
+        await callback(metadata.localAssetId, remoteAssetId);
+      }
+    } catch (error, stackTrace) {
+      _logger.warning("Error handling finished upload", error, stackTrace);
     }
   }
 

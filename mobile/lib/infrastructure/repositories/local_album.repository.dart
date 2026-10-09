@@ -458,4 +458,25 @@ class LocalAlbumRepository extends DatabaseAccessor<Drift> with $LocalAlbumRepos
     final query = _db.localAlbumEntity.update()..where((row) => row.id.equals(localAlbumId));
     await query.write(LocalAlbumEntityCompanion(linkedRemoteAlbumId: Value(remoteAlbumId)));
   }
+
+  /// Fork: the device albums the user chose to mirror into a server album
+  Future<List<LocalAlbum>> getLinkedAlbums() {
+    final query = _db.localAlbumEntity.select()..where((row) => row.linkedRemoteAlbumId.isNotNull());
+    return query.map((row) => row.toDto()).get();
+  }
+
+  /// Fork: linked device albums that contain [localAssetId]
+  Future<List<LocalAlbum>> getLinkedAlbumsForAsset(String localAssetId) {
+    final query =
+        _db.localAlbumEntity.select().join([
+          innerJoin(
+            _db.localAlbumAssetEntity,
+            _db.localAlbumAssetEntity.albumId.equalsExp(_db.localAlbumEntity.id),
+            useColumns: false,
+          ),
+        ])..where(
+          _db.localAlbumEntity.linkedRemoteAlbumId.isNotNull() & _db.localAlbumAssetEntity.assetId.equals(localAssetId),
+        );
+    return query.map((row) => row.readTable(_db.localAlbumEntity).toDto()).get();
+  }
 }
