@@ -112,6 +112,8 @@ class _AlbumSyncActionButtonState extends ConsumerState<_AlbumSyncActionButton> 
 
                     if (newValue == true) {
                       await _manageLinkedAlbums();
+                      // Fork: add what is already uploaded for the albums chosen while sync was off
+                      unawaited(ref.read(backgroundSyncProvider).syncLinkedAlbum());
                     }
                   },
                 ),
