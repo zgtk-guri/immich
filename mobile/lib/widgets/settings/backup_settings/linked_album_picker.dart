@@ -7,6 +7,7 @@ import 'package:immich_mobile/domain/services/sync_linked_album.service.dart';
 import 'package:immich_mobile/extensions/build_context_extensions.dart';
 import 'package:immich_mobile/providers/background_sync.provider.dart';
 import 'package:immich_mobile/providers/backup/backup_album.provider.dart';
+import 'package:immich_mobile/providers/infrastructure/settings.provider.dart';
 import 'package:immich_mobile/providers/user.provider.dart';
 
 /// Picks the device albums that are mirrored into a server album of the same name,
@@ -75,6 +76,9 @@ class _LinkedAlbumPickerState extends ConsumerState<LinkedAlbumPicker> {
 
   @override
   Widget build(BuildContext context) {
+    if (!ref.watch(appConfigProvider.select((c) => c.backup.syncAlbums))) {
+      return const SizedBox.shrink();
+    }
     final albums = ref.watch(backupAlbumProvider);
     final linked = albums.where((a) => a.linkedRemoteAlbumId != null).toList();
     final ordered = [...linked, ...albums.where((a) => a.linkedRemoteAlbumId == null)];
