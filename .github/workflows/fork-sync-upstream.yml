@@ -4,8 +4,12 @@ name: Fork sync upstream
 # succeeds, kicks off a TestFlight build. A rebase conflict opens an issue instead, because
 # resolving it needs a human looking at what upstream changed.
 #
-# `geofence` deliberately carries no workflow files, so this job's GITHUB_TOKEN is allowed
-# to push it (a token without the workflows permission cannot push workflow changes).
+# The push goes through a deploy key rather than GITHUB_TOKEN: `geofence` sits on top of
+# upstream's history, and whenever an upstream release touches .github/workflows the
+# token is refused ("without `workflows` permission"). A write deploy key is not subject
+# to that restriction and is scoped to this repository only.
+#
+# Required secret: SYNC_DEPLOY_KEY (private half of a write-enabled deploy key)
 
 on:
   schedule:
@@ -39,6 +43,7 @@ jobs:
         with:
           ref: geofence
           fetch-depth: 0
+          ssh-key: ${{ secrets.SYNC_DEPLOY_KEY }}
 
       - name: Fetch upstream tags
         run: |
