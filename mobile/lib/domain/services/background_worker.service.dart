@@ -10,6 +10,7 @@ import 'package:immich_mobile/data/store.dart';
 import 'package:immich_mobile/domain/services/hash.service.dart';
 import 'package:immich_mobile/domain/services/local_sync.service.dart';
 import 'package:immich_mobile/domain/services/log.service.dart';
+import 'package:immich_mobile/domain/services/sync_linked_album.service.dart';
 import 'package:immich_mobile/domain/services/sync_stream.service.dart';
 // ignore: library_prefixes
 import 'package:immich_mobile/entities/store.entity.dart' as dbStore;
@@ -193,6 +194,25 @@ class BackgroundWorkerBgService extends BackgroundWorkerFlutterApi {
           );
         } else {
           await secondPass;
+        }
+      }
+
+      // Fork: catch up on uploaded assets that are not in their linked server album yet, e.g.
+      // ones added to a device album after they were uploaded
+      final canCatchUp =
+          SettingsRepository.instance.appConfig.backup.syncAlbums &&
+          !_isCleanedUp &&
+          !_cancellationToken.isCompleted &&
+          (budget == null || sw.elapsed < budget);
+      final userId = canCatchUp ? _ref?.read(currentUserProvider)?.id : null;
+      if (userId != null) {
+        final albumSync = _ref!
+            .read(syncLinkedAlbumServiceProvider)
+            .syncLinkedAlbums(userId, cancellation: _cancellationToken);
+        if (budget != null) {
+          await albumSync.timeout(budget - sw.elapsed, onTimeout: () {});
+        } else {
+          await albumSync;
         }
       }
     } catch (error, stack) {

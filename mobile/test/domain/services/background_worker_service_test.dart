@@ -92,7 +92,8 @@ void main() {
 
       remoteSync.complete(true);
       await upload;
-      verify(() => mockBackgroundUploadService.uploadBackupCandidates(UserStub.admin.id)).called(1);
+      // Fork: a second pass lists again to pick up assets the local sync found late
+      verify(() => mockBackgroundUploadService.uploadBackupCandidates(UserStub.admin.id)).called(2);
     });
 
     test('does not list a new batch when the remote sync fails', () async {
