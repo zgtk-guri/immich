@@ -22,6 +22,28 @@ class LinkedAlbumPicker extends ConsumerStatefulWidget {
 class _LinkedAlbumPickerState extends ConsumerState<LinkedAlbumPicker> {
   final Set<String> _busy = {};
 
+  /// Album ids in display order, frozen while the list is open so that rows do not jump
+  /// under the finger when switches are flipped one after another
+  List<String>? _frozenOrder;
+
+  List<LocalAlbum> _ordered(List<LocalAlbum> albums) {
+    final order = _frozenOrder;
+    if (order == null) {
+      // Chosen albums first, so the current selection is visible at a glance
+      return [
+        ...albums.where((a) => a.linkedRemoteAlbumId != null),
+        ...albums.where((a) => a.linkedRemoteAlbumId == null),
+      ];
+    }
+    final byId = {for (final album in albums) album.id: album};
+    final known = order.toSet();
+    return [
+      for (final id in order)
+        if (byId[id] != null) byId[id]!,
+      ...albums.where((a) => !known.contains(a.id)),
+    ];
+  }
+
   @override
   void initState() {
     super.initState();
@@ -82,11 +104,13 @@ class _LinkedAlbumPickerState extends ConsumerState<LinkedAlbumPicker> {
     final syncEnabled = ref.watch(appConfigProvider.select((c) => c.backup.syncAlbums));
     final albums = ref.watch(backupAlbumProvider);
     final linked = albums.where((a) => a.linkedRemoteAlbumId != null).toList();
-    final ordered = [...linked, ...albums.where((a) => a.linkedRemoteAlbumId == null)];
+    final ordered = _ordered(albums);
 
     return Padding(
       padding: const EdgeInsets.only(left: 16),
       child: ExpansionTile(
+        onExpansionChanged: (open) =>
+            setState(() => _frozenOrder = open ? _ordered(albums).map((a) => a.id).toList() : null),
         title: Text('同期するアルバム', style: context.textTheme.bodyLarge!.copyWith(fontWeight: FontWeight.w500)),
         subtitle: Text(
           [
